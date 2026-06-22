@@ -22,21 +22,22 @@ DROP TABLE IF EXISTS company           CASCADE;
 -- 1. company
 -- ============================================================
 CREATE TABLE company (
-    companyid   SERIAL          PRIMARY KEY  CONSTRAINT company_pkey,
+    companyid   SERIAL,
     companyname VARCHAR(255),
     country     VARCHAR(100),
-    website     VARCHAR(255)
+    website     VARCHAR(255),
+    CONSTRAINT company_pkey PRIMARY KEY (companyid)
 );
 
 -- ============================================================
 -- 2. game  (depends on: company)
 -- ============================================================
 CREATE TABLE game (
-    gameid      SERIAL          PRIMARY KEY  CONSTRAINT game_pkey,
+    gameid      SERIAL,
     gamename    VARCHAR(255),
     genre       VARCHAR(100),
     companyid   INT,
-
+    CONSTRAINT game_pkey PRIMARY KEY (gameid),
     CONSTRAINT fk_game_company
         FOREIGN KEY (companyid) REFERENCES company (companyid)
 );
@@ -45,12 +46,12 @@ CREATE TABLE game (
 -- 3. server  (depends on: game)
 -- ============================================================
 CREATE TABLE server (
-    serverid    SERIAL          PRIMARY KEY  CONSTRAINT server_pkey,
+    serverid    SERIAL,
     servername  VARCHAR(255),
     gameid      INT,
     region      VARCHAR(100),
     status      VARCHAR(20),
-
+    CONSTRAINT server_pkey PRIMARY KEY (serverid),
     CONSTRAINT fk_server_game
         FOREIGN KEY (gameid) REFERENCES game (gameid)
 );
@@ -59,11 +60,11 @@ CREATE TABLE server (
 -- 4. guild  (depends on: server)
 -- ============================================================
 CREATE TABLE guild (
-    guildid         SERIAL      PRIMARY KEY  CONSTRAINT guild_pkey,
+    guildid         SERIAL,
     guildname       VARCHAR(255),
     serverid        INT,
     leaderplayerid  INT,
-
+    CONSTRAINT guild_pkey PRIMARY KEY (guildid),
     CONSTRAINT fk_guild_server
         FOREIGN KEY (serverid) REFERENCES server (serverid)
 );
@@ -72,12 +73,12 @@ CREATE TABLE guild (
 -- 5. player  (depends on: game, server, guild)
 -- ============================================================
 CREATE TABLE player (
-    playerid    SERIAL          PRIMARY KEY  CONSTRAINT player_pkey,
+    playerid    SERIAL,
     playername  VARCHAR(255),
     gameid      INT,
     serverid    INT,
     guildid     INT,
-
+    CONSTRAINT player_pkey PRIMARY KEY (playerid),
     CONSTRAINT fk_player_game
         FOREIGN KEY (gameid)   REFERENCES game   (gameid),
     CONSTRAINT fk_player_server
@@ -90,13 +91,13 @@ CREATE TABLE player (
 -- 6. event  (depends on: game)
 -- ============================================================
 CREATE TABLE event (
-    eventid     SERIAL          PRIMARY KEY  CONSTRAINT event_pkey,
+    eventid     SERIAL,
     eventname   VARCHAR(255),
     gameid      INT,
     eventtype   VARCHAR(100),
     startdate   TIMESTAMP WITHOUT TIME ZONE,
     enddate     TIMESTAMP WITHOUT TIME ZONE,
-
+    CONSTRAINT event_pkey PRIMARY KEY (eventid),
     CONSTRAINT fk_event_game
         FOREIGN KEY (gameid) REFERENCES game (gameid)
 );
@@ -106,12 +107,12 @@ CREATE TABLE event (
 -- Note: table name is case-sensitive ("User" with capital U)
 -- ============================================================
 CREATE TABLE "User" (
-    userid          SERIAL      PRIMARY KEY  CONSTRAINT "User_pkey",
+    userid          SERIAL,
     username        VARCHAR(100),
     email           VARCHAR(255),
     passwordhash    VARCHAR(255),
     role            VARCHAR(20),
-
+    CONSTRAINT "User_pkey" PRIMARY KEY (userid),
     CONSTRAINT "User_username_key" UNIQUE (username),
     CONSTRAINT "User_email_key"    UNIQUE (email)
 );
@@ -120,13 +121,13 @@ CREATE TABLE "User" (
 -- 8. imageupload  (depends on: "User", event)
 -- ============================================================
 CREATE TABLE imageupload (
-    uploadid    SERIAL          PRIMARY KEY  CONSTRAINT imageupload_pkey,
+    uploadid    SERIAL,
     userid      INT,
     eventid     INT,
     imageurl    VARCHAR(500),
     uploadtime  TIMESTAMP WITHOUT TIME ZONE,
     status      VARCHAR(50),
-
+    CONSTRAINT imageupload_pkey PRIMARY KEY (uploadid),
     CONSTRAINT fk_upload_user
         FOREIGN KEY (userid)  REFERENCES "User" (userid),
     CONSTRAINT fk_upload_event
@@ -137,12 +138,12 @@ CREATE TABLE imageupload (
 -- 9. aianalysis  (depends on: imageupload)
 -- ============================================================
 CREATE TABLE aianalysis (
-    analysisid      SERIAL      PRIMARY KEY  CONSTRAINT aianalysis_pkey,
+    analysisid      SERIAL,
     uploadid        INT,
     aimodelversion  VARCHAR(100),
     confidencescore DOUBLE PRECISION,
     processedtime   TIMESTAMP WITHOUT TIME ZONE,
-
+    CONSTRAINT aianalysis_pkey PRIMARY KEY (analysisid),
     CONSTRAINT fk_analysis_upload
         FOREIGN KEY (uploadid) REFERENCES imageupload (uploadid)
 );
@@ -151,12 +152,12 @@ CREATE TABLE aianalysis (
 -- 10. aiextractedfield  (depends on: aianalysis)
 -- ============================================================
 CREATE TABLE aiextractedfield (
-    fieldid     SERIAL          PRIMARY KEY  CONSTRAINT aiextractedfield_pkey,
+    fieldid     SERIAL,
     analysisid  INT,
     rawtext     VARCHAR(500),
     fieldtype   VARCHAR(100),
     confidence  DOUBLE PRECISION,
-
+    CONSTRAINT aiextractedfield_pkey PRIMARY KEY (fieldid),
     CONSTRAINT fk_field_analysis
         FOREIGN KEY (analysisid) REFERENCES aianalysis (analysisid)
 );
@@ -165,12 +166,12 @@ CREATE TABLE aiextractedfield (
 -- 11. leaderboard  (depends on: event, aianalysis)
 -- ============================================================
 CREATE TABLE leaderboard (
-    leaderboardid           SERIAL  PRIMARY KEY  CONSTRAINT leaderboard_pkey,
+    leaderboardid           SERIAL,
     eventid                 INT,
     title                   VARCHAR(255),
     metrictype              VARCHAR(100),
     createdfromanalysisid   INT,
-
+    CONSTRAINT leaderboard_pkey PRIMARY KEY (leaderboardid),
     CONSTRAINT fk_leaderboard_event
         FOREIGN KEY (eventid)               REFERENCES event      (eventid),
     CONSTRAINT fk_leaderboard_analysis
@@ -181,12 +182,12 @@ CREATE TABLE leaderboard (
 -- 12. leaderboardentry  (depends on: leaderboard, player)
 -- ============================================================
 CREATE TABLE leaderboardentry (
-    entryid         SERIAL  PRIMARY KEY  CONSTRAINT leaderboardentry_pkey,
+    entryid         SERIAL,
     leaderboardid   INT,
     playerid        INT,
     rank            INT,
     value           DOUBLE PRECISION,
-
+    CONSTRAINT leaderboardentry_pkey PRIMARY KEY (entryid),
     CONSTRAINT fk_entry_leaderboard
         FOREIGN KEY (leaderboardid) REFERENCES leaderboard (leaderboardid),
     CONSTRAINT fk_entry_player
@@ -196,21 +197,21 @@ CREATE TABLE leaderboardentry (
 -- ============================================================
 -- INDEXES  (performance)
 -- ============================================================
-CREATE INDEX idx_game_companyid        ON game             (companyid);
-CREATE INDEX idx_server_gameid         ON server           (gameid);
-CREATE INDEX idx_guild_serverid        ON guild            (serverid);
-CREATE INDEX idx_player_gameid         ON player           (gameid);
-CREATE INDEX idx_player_serverid       ON player           (serverid);
-CREATE INDEX idx_player_guildid        ON player           (guildid);
-CREATE INDEX idx_event_gameid          ON event            (gameid);
-CREATE INDEX idx_imageupload_userid    ON imageupload      (userid);
-CREATE INDEX idx_imageupload_eventid   ON imageupload      (eventid);
-CREATE INDEX idx_aianalysis_uploadid   ON aianalysis       (uploadid);
+CREATE INDEX idx_game_companyid         ON game             (companyid);
+CREATE INDEX idx_server_gameid          ON server           (gameid);
+CREATE INDEX idx_guild_serverid         ON guild            (serverid);
+CREATE INDEX idx_player_gameid          ON player           (gameid);
+CREATE INDEX idx_player_serverid        ON player           (serverid);
+CREATE INDEX idx_player_guildid         ON player           (guildid);
+CREATE INDEX idx_event_gameid           ON event            (gameid);
+CREATE INDEX idx_imageupload_userid     ON imageupload      (userid);
+CREATE INDEX idx_imageupload_eventid    ON imageupload      (eventid);
+CREATE INDEX idx_aianalysis_uploadid    ON aianalysis       (uploadid);
 CREATE INDEX idx_aiextracted_analysisid ON aiextractedfield (analysisid);
-CREATE INDEX idx_leaderboard_eventid   ON leaderboard      (eventid);
-CREATE INDEX idx_leaderboard_analysisid ON leaderboard     (createdfromanalysisid);
-CREATE INDEX idx_entry_leaderboardid   ON leaderboardentry (leaderboardid);
-CREATE INDEX idx_entry_playerid        ON leaderboardentry (playerid);
+CREATE INDEX idx_leaderboard_eventid    ON leaderboard      (eventid);
+CREATE INDEX idx_leaderboard_analysisid ON leaderboard      (createdfromanalysisid);
+CREATE INDEX idx_entry_leaderboardid    ON leaderboardentry (leaderboardid);
+CREATE INDEX idx_entry_playerid         ON leaderboardentry (playerid);
 
 -- ============================================================
 -- SAMPLE DATA  (đủ để chạy app bình thường)
@@ -218,9 +219,9 @@ CREATE INDEX idx_entry_playerid        ON leaderboardentry (playerid);
 
 -- company
 INSERT INTO company (companyname, country, website) VALUES
-    ('VNG Corporation',  'Vietnam', 'https://vng.com.vn'),
+    ('VNG Corporation',  'Vietnam',   'https://vng.com.vn'),
     ('Garena',           'Singapore', 'https://garena.com'),
-    ('Riot Games',       'USA', 'https://riotgames.com');
+    ('Riot Games',       'USA',       'https://riotgames.com');
 
 -- game
 INSERT INTO game (gamename, genre, companyid) VALUES
@@ -249,14 +250,14 @@ INSERT INTO player (playername, gameid, serverid, guildid) VALUES
 
 -- "User"
 INSERT INTO "User" (username, email, passwordhash, role) VALUES
-    ('admin',   'admin@swd392.com',   '$2a$11$placeholder_hash_admin',  'admin'),
-    ('player1', 'player1@gmail.com',  '$2a$11$placeholder_hash_p1',     'user'),
-    ('player2', 'player2@gmail.com',  '$2a$11$placeholder_hash_p2',     'user');
+    ('admin',   'admin@swd392.com',  '$2a$11$placeholder_hash_admin', 'admin'),
+    ('player1', 'player1@gmail.com', '$2a$11$placeholder_hash_p1',    'user'),
+    ('player2', 'player2@gmail.com', '$2a$11$placeholder_hash_p2',    'user');
 
 -- event
 INSERT INTO event (eventname, gameid, eventtype, startdate, enddate) VALUES
-    ('Giải Đấu Bang Chiến Tháng 6',  1, 'tournament', '2026-06-01 09:00:00', '2026-06-30 23:59:59'),
-    ('PK Cá Nhân Tuần 24',           1, 'pvp',        '2026-06-10 18:00:00', '2026-06-10 22:00:00');
+    ('Giải Đấu Bang Chiến Tháng 6', 1, 'tournament', '2026-06-01 09:00:00', '2026-06-30 23:59:59'),
+    ('PK Cá Nhân Tuần 24',          1, 'pvp',        '2026-06-10 18:00:00', '2026-06-10 22:00:00');
 
 -- imageupload
 INSERT INTO imageupload (userid, eventid, imageurl, uploadtime, status) VALUES

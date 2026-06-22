@@ -6,7 +6,26 @@ services:
     dockerContext: .
     envVars:
       - key: ConnectionStrings__DefaultConnection
-        sync: false
-      - key: Groq__ApiKey
-        sync: false
-            
+        value: "Host=db.nhmizaojhikpgbvxdpcw.supabase.co; Port=5432; Database=postgres; Username=postgres; Password=Hxvf1234@12@; SSL Mode=Require; Trust Server Certificate=true"
+      - key: Jwt__Key
+        value: "ThisIsAVerySecretKeyForJWTDemo1234567890"
+      - key: Jwt__Issuer
+        value: "GameAIAnalysis"
+      - key: Jwt__Audience
+        value: "GameAIAnalysisUsers"
+      - key: Jwt__DurationInMinutes
+        value: "60"
+      - key: Cloudinary__CloudName
+        value: "drxbaxbkt"
+      - key: Cloudinary__ApiKey
+        value: "112143581823739"
+      - key: Cloudinary__ApiSecret
+        value: "TRaQ0HuVNQnI_85yn2jofvKzQGY"
+      - key: OcrApi__BaseUrl
+        value: "https://hxvf123-demoocrserver.hf.space"
+      - key: OcrApi__ExtractEndpoint
+        value: "/api/v1/extract"
+      - key: OcrApi__Language
+        value: "eng"
+      - key: ASPNETCORE_ENVIRONMENT
+        value: "Production"
