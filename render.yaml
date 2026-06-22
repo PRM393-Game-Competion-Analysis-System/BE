@@ -6,7 +6,7 @@ services:
     dockerContext: .
     envVars:
       - key: ConnectionStrings__DefaultConnection
-        value: "Host=db.nhmizaojhikpgbvxdpcw.supabase.co; Port=5432; Database=postgres; Username=postgres; Password=Hxvf1234@12@; SSL Mode=Require; Trust Server Certificate=true"
+        value: "Host=aws-1-ap-northeast-1.pooler.supabase.com; Port=6543; Database=postgres; Username=postgres.nhmizaojhikpgbvxdpcw; Password=Hxvf1234@12@; SSL Mode=Require; Trust Server Certificate=true; Pooling=false"
       - key: Jwt__Key
         value: "ThisIsAVerySecretKeyForJWTDemo1234567890"
       - key: Jwt__Issuer
