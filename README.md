@@ -1,119 +1,191 @@
-📝 Game Competition Analysis System (GCAS)
-Hệ thống tự động thu thập và phân tích bảng xếp hạng game (Võ Lâm Truyền Kỳ) sử dụng Airtest, AI (Groq/Llama) và .NET 8.
-🚀 Tính năng chính
-Auto-Capture: Tự động chụp màn hình game theo định kỳ bằng Airtest.
+# Game Competition Analysis System — Backend
 
-AI Analysis: Sử dụng mô hình Llama 3 (qua Groq API) để bóc tách dữ liệu từ ảnh (OCR & Structured Data).
+ASP.NET Core 8 REST API for automated leaderboard tracking of Võ Lâm Truyền Kỳ (VLTK Mobile & 2.0). Screenshots captured by an Airtest bot are uploaded to Cloudinary, analyzed by an OCR + AI pipeline (Groq/Llama), and the extracted data is stored in PostgreSQL.
 
-Leaderboard Tracking: Tự động quản lý danh sách Player, Server, Guild và biến động bảng xếp hạng.
+---
 
-Cloud Deployment: Hệ thống Backend được Dockerize và triển khai trên Render.
+## Architecture
 
-🏗 Kiến trúc hệ thống (System Architecture)
-Hệ thống vận hành theo mô hình Hybrid Automation:
+```
+Airtest Bot (Python)
+    └─> POST screenshot
+            └─> ASP.NET Core 8 API (this repo)
+                    ├─> OCR Service (Hugging Face Space / FastAPI)
+                    ├─> Groq AI (Llama vision — structured data extraction)
+                    ├─> Cloudinary (image storage + background sync worker)
+                    └─> PostgreSQL (Entity Framework Core)
+```
 
-Client (Python/Airtest): Chạy tại máy local, điều khiển giả lập game, chụp ảnh và POST ảnh lên Server.
+**Project layers:**
 
-Server (.NET 8 API): Tiếp nhận dữ liệu, điều phối luồng phân tích AI.
+| Layer | Folder | Responsibility |
+|-------|--------|----------------|
+| API | `Controllers/` | HTTP endpoints, auth, routing |
+| Business Logic | `BIL/Service/` | Orchestration, pagination, mapping |
+| Data Access | `DAL/Repository/`, `DAL/Entities/` | EF Core, DTOs |
 
-AI Layer (Groq): Xử lý hình ảnh và trả về dữ liệu định dạng JSON.
+---
 
-Database (SQL Server): Lưu trữ lịch sử phân tích và thông tin người chơi.
+## Tech Stack
 
-🛠 Công nghệ sử dụng
-Backend: ASP.NET Core 8 (Web API)
+- **Runtime:** .NET 8 / ASP.NET Core Web API
+- **Database:** PostgreSQL via Entity Framework Core (Npgsql)
+- **Auth:** JWT Bearer (roles: `admin`, `user`)
+- **AI/OCR:** Groq Cloud API (Llama vision), custom FastAPI OCR server
+- **Storage:** Cloudinary (image hosting + background sync)
+- **Deployment:** Docker, Render.com
 
-Database: Entity Framework Core, SQL Server
+---
 
-Automation: Airtest Project (Python)
-📦 Hướng dẫn cài đặt
-1. Cấu hình Backend (.NET)
-Clone dự án và mở bằng Visual Studio 2022.
+## Getting Started
 
-Cấu hình appsettings.json:
-JSON
+### Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- A running PostgreSQL instance
+- Cloudinary account
+- Groq API key
+
+### Configuration
+
+Copy the example config and fill in your values:
+
+```bash
+cp appsettings.example.json appsettings.json
+```
+
+Edit `appsettings.json`:
+
+```json
 {
-  "Groq": {
-    "ApiKey": "YOUR_GROQ_API_KEY"
-  },
   "ConnectionStrings": {
-    "DefaultConnection": "YOUR_SQL_SERVER_CONNECTION_STRING"
+    "DefaultConnection": "Host=...;Database=...;Username=...;Password=...;SSL Mode=Require"
+  },
+  "Jwt": {
+    "Key": "<min 32 char secret>",
+    "Issuer": "GameAIAnalysis",
+    "Audience": "GameAIAnalysisUsers",
+    "DurationInMinutes": 60
+  },
+  "Cloudinary": {
+    "CloudName": "...",
+    "ApiKey": "...",
+    "ApiSecret": "..."
+  },
+  "OcrApi": {
+    "BaseUrl": "https://<your-ocr-server>",
+    "ExtractEndpoint": "/api/v1/extract",
+    "Language": "eng"
   }
 }
-Update Database: dotnet ef database update
+```
 
-2. Cấu hình Bot tự động (Airtest)
-Cài đặt thư viện: pip install airtest requests
+### Run locally
 
-Chạy file bot_capture.py (Script Python bạn dùng để chụp màn hình).
+```bash
+dotnet restore
+dotnet run
+```
 
-📡 API Endpoints
-Gemini đã nói
-Việc viết một file README.md chuyên nghiệp là "vũ khí" cực mạnh để ghi điểm với hội đồng Review 2. Nó cho thấy bạn có tư duy làm sản phẩm thực tế chứ không chỉ là code bài tập.
+Swagger UI is available at `http://localhost:<port>/swagger`.
 
-Dưới đây là mẫu README được thiết kế riêng cho dự án Game Competition Analysis System của bạn, kết hợp cả .NET Core, AI và Airtest.
+### Run with Docker
 
-📝 Game Competition Analysis System (GCAS)
-Hệ thống tự động thu thập và phân tích bảng xếp hạng game (Võ Lâm Truyền Kỳ) sử dụng Airtest, AI (Groq/Llama) và .NET 8.
+```bash
+docker build -t gcas-api .
+docker run -p 10000:10000 \
+  -e ConnectionStrings__DefaultConnection="..." \
+  -e Groq__ApiKey="..." \
+  gcas-api
+```
 
-🚀 Tính năng chính
-Auto-Capture: Tự động chụp màn hình game theo định kỳ bằng Airtest.
+---
 
-AI Analysis: Sử dụng mô hình Llama 3 (qua Groq API) để bóc tách dữ liệu từ ảnh (OCR & Structured Data).
+## API Reference
 
-Leaderboard Tracking: Tự động quản lý danh sách Player, Server, Guild và biến động bảng xếp hạng.
+All protected routes require `Authorization: Bearer <token>`.
 
-Cloud Deployment: Hệ thống Backend được Dockerize và triển khai trên Render.
+### Auth
 
-🏗 Kiến trúc hệ thống (System Architecture)
-Hệ thống vận hành theo mô hình Hybrid Automation:
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register` | Public | Create a new user account |
+| POST | `/api/auth/login` | Public | Returns a JWT token |
 
-Client (Python/Airtest): Chạy tại máy local, điều khiển giả lập game, chụp ảnh và POST ảnh lên Server.
+### AI Analysis
 
-Server (.NET 8 API): Tiếp nhận dữ liệu, điều phối luồng phân tích AI.
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/ai/analyze?gameName=` | Public | Upload a screenshot for OCR + AI analysis |
+| POST | `/api/ai/analyze/automatic?gameName=` | Public | Analyze the latest image from Cloudinary |
+| GET | `/api/ai` | Required | Paginated analysis history (admin sees all) |
+| GET | `/api/ai/{id}` | Required | Get a single analysis record |
+| GET | `/api/ai/{id}/result` | Public | Get extracted fields from an analysis |
+| GET | `/api/ai/airtest-uploads` | Public | List images in the Cloudinary upload folder |
+| GET | `/api/ai/heatmap` | Public | Aggregated heatmap data |
+| DELETE | `/api/ai/{id}` | Admin | Delete an analysis record |
 
-AI Layer (Groq): Xử lý hình ảnh và trả về dữ liệu định dạng JSON.
+`gameName` values: `VLTK_Mobile`, `VLTK_2_0`
 
-Database (SQL Server): Lưu trữ lịch sử phân tích và thông tin người chơi.
+### Leaderboard
 
-🛠 Công nghệ sử dụng
-Backend: ASP.NET Core 8 (Web API)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/leaderboard` | Public | Paginated leaderboard list |
+| GET | `/api/leaderboard/top/{n}` | Public | Top N leaderboard entries |
+| GET | `/api/leaderboard/{id}` | Public | Get leaderboard by ID |
+| GET | `/api/leaderboard/{id}/entries` | Public | Raw entries for a leaderboard |
+| GET | `/api/leaderboard/{id}/sorted` | Public | Rank-sorted entries |
+| POST | `/api/leaderboard/from-ocr/{analysisId}` | Required | Parse OCR result into leaderboard |
+| DELETE | `/api/leaderboard/{id}` | Admin | Delete a leaderboard |
 
-Database: Entity Framework Core, SQL Server
+### Game Data (CRUD)
 
-Automation: Airtest Project (Python)
+All list endpoints support pagination via `?pageNumber=&pageSize=`.
 
-AI: Groq Cloud API (Model: llama-3.2-11b-vision-preview hoặc tương đương)
+| Resource | Base Route | Notes |
+|----------|-----------|-------|
+| Players | `/api/players` | Search by name, filter by game/server/guild |
+| Servers | `/api/servers` | |
+| Guilds | `/api/guilds` | |
+| Games | `/api/games` | |
+| Companies | `/api/companies` | |
+| Events | `/api/events` | |
+| Users | `/api/users` | Admin only for write operations |
 
-DevOps: Docker, Render Cloud
+### System
 
-📦 Hướng dẫn cài đặt
-1. Cấu hình Backend (.NET)
-Clone dự án và mở bằng Visual Studio 2022.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/` | Redirects to Swagger UI |
 
-Cấu hình appsettings.json:
+---
 
-JSON
-{
-  "Groq": {
-    "ApiKey": "YOUR_GROQ_API_KEY"
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "YOUR_SQL_SERVER_CONNECTION_STRING"
-  }
-}
-Update Database: dotnet ef database update
+## Deployment (Render)
 
-2. Cấu hình Bot tự động (Airtest)
-Cài đặt thư viện: pip install airtest requests
+The repo includes a `render.yaml` for one-click Docker deployment. Set the following environment variables in the Render dashboard:
 
-Chạy file bot_capture.py (Script Python bạn dùng để chụp màn hình).
+- `ConnectionStrings__DefaultConnection`
+- `Groq__ApiKey`
+- `Jwt__Key`
+- `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret`
 
-📡 API Endpoints
-Method	Endpoint	Description
-POST	/api/Analysis/process	Tiếp nhận ảnh từ Bot và bắt đầu phân tích AI
-GET	/api/Analysis	Lấy danh sách các lượt phân tích đã thực hiện
-GET	/api/Leaderboard/top	Xem bảng xếp hạng hiện tại
-AI: Groq Cloud API (Model: llama-3.2-11b-vision-preview hoặc tương đương)
+---
 
-DevOps: Docker, Render Cloud
+## Project Structure
+
+```
+├── Controllers/        # API endpoints
+├── BIL/
+│   └── Service/        # Business logic & interfaces
+├── DAL/
+│   ├── DTO/            # Data transfer objects
+│   ├── Entities/       # EF Core entity models
+│   └── Repository/     # Data access & interfaces
+├── DemoApp/            # Python FastAPI OCR server (standalone)
+├── Dockerfile          # Multi-stage Docker build
+├── render.yaml         # Render.com deployment config
+├── appsettings.example.json  # Config template (copy to appsettings.json)
+└── db_schema.sql       # Database schema
+```
