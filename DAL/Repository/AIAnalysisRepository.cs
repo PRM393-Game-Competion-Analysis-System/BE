@@ -23,7 +23,7 @@ namespace DAL.Repository
                 config["Cloudinary:ApiSecret"]
             ));
         private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
-        private const string OcrEndpoint = "https://hxvf123-demoocrserver.hf.space/api/v1/extract?language=eng";
+        private const string OcrEndpoint = "https://hxvf123-demoocrserver.hf.space/api/v1/extract?language=vie";
 
         public async Task<Aianalysis> ProcessScreenshotAsync(IFormFile file, int userId, string gameName)
         {
@@ -326,7 +326,7 @@ namespace DAL.Repository
             using var form = new MultipartFormDataContent();
             var imageContent = new ByteArrayContent(imageBytes);
             imageContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-            form.Add(imageContent, "file", fileName);
+            form.Add(imageContent, "image", fileName);
 
             var response = await _http.PostAsync(OcrEndpoint, form);
             var raw = await response.Content.ReadAsStringAsync();
