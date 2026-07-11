@@ -16,11 +16,11 @@ services:
       - key: Jwt__DurationInMinutes
         value: "60"
       - key: Cloudinary__CloudName
-        value: "drxbaxbkt"
+        value: "ddlmjiibl"
       - key: Cloudinary__ApiKey
-        value: "112143581823739"
+        value: "373117381128584"
       - key: Cloudinary__ApiSecret
-        value: "TRaQ0HuVNQnI_85yn2jofvKzQGY"
+        value: "zxjRFwXB8CXUIgZaRcYu9vWOEp4"
       - key: OcrApi__BaseUrl
         value: "https://hxvf123-demoocrserver.hf.space"
       - key: OcrApi__ExtractEndpoint

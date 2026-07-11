@@ -154,7 +154,7 @@ CREATE TABLE aianalysis (
 CREATE TABLE aiextractedfield (
     fieldid     SERIAL,
     analysisid  INT,
-    rawtext     VARCHAR(500),
+    rawtext     TEXT,
     fieldtype   VARCHAR(100),
     confidence  DOUBLE PRECISION,
     CONSTRAINT aiextractedfield_pkey PRIMARY KEY (fieldid),

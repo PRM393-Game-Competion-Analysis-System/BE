@@ -141,7 +141,7 @@ namespace DAL.Repository
                 _context.Aiextractedfields.Add(new Aiextractedfield
                 {
                     Analysisid = analysis.Analysisid,
-                    Rawtext = rawText.Length > 500 ? rawText[..500] : rawText,
+                    Rawtext = rawText,
                     Fieldtype = "RawText",
                     Confidence = avgConfidence
                 });
@@ -174,7 +174,7 @@ namespace DAL.Repository
 
                     if (targetServer == null)
                     {
-                        targetServer = new Server { Servername = gameData.ServerName, Game = targetGame };
+                        targetServer = new Server { Servername = Truncate(gameData.ServerName, 255), Game = targetGame };
                         _context.Servers.Add(targetServer);
                         await _context.SaveChangesAsync();
                     }
@@ -200,7 +200,7 @@ namespace DAL.Repository
                     {
                         targetEvent = new Event
                         {
-                            Eventname = gameData.EventName,
+                            Eventname = Truncate(gameData.EventName, 255),
                             Game = targetGame,
                             Startdate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                         };
@@ -219,7 +219,7 @@ namespace DAL.Repository
                 // 4. Create Leaderboard
                 var lb = new Leaderboard
                 {
-                    Title = $"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}",
+                    Title = Truncate($"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}", 255),
                     Createdfromanalysisid = analysis.Analysisid,
                     Metrictype = "Score",
                     Event = targetEvent
@@ -244,7 +244,7 @@ namespace DAL.Repository
 
                             if (playerGuild == null)
                             {
-                                playerGuild = new Guild { Guildname = entry.GuildName, Server = targetServer };
+                                playerGuild = new Guild { Guildname = Truncate(entry.GuildName, 255), Server = targetServer };
                                 _context.Guilds.Add(playerGuild);
                                 await _context.SaveChangesAsync();
                             }
@@ -263,7 +263,7 @@ namespace DAL.Repository
                         {
                             player = new Player
                             {
-                                Playername = entry.PlayerName,
+                                Playername = Truncate(entry.PlayerName, 255),
                                 Game = targetGame,
                                 Server = targetServer,
                                 Guild = playerGuild
@@ -306,6 +306,12 @@ namespace DAL.Repository
             return analysis!;
         }
 
+        private static string? Truncate(string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value;
+            return value.Length <= maxLength ? value : value[..maxLength];
+        }
+
         // ── OCR API call ──────────────────────────────────────────────────────────
 
         private async Task<HfOcrResultDto> CallHfOcrWithUrl(string imageUrl)
@@ -344,16 +350,21 @@ namespace DAL.Repository
         {
             var result = new GameOcrData { GameName = gameName };
 
+            if (!string.IsNullOrWhiteSpace(ocr.FullText))
+            {
+                TryParseStructuredFullText(result, ocr.FullText);
+            }
+
             var validBlocks = ocr.TextBlocks
                 .Where(b => !string.IsNullOrWhiteSpace(b.Text) && b.BoundingBox != null && b.Confidence > 30)
                 .ToList();
 
-            if (validBlocks.Count > 0)
+            if (validBlocks.Count > 0 && result.Leaderboard.Count == 0)
             {
                 var rows = GroupBlocksIntoRows(validBlocks, yTolerance: 20);
                 ParseRows(rows, result);
             }
-            else if (!string.IsNullOrWhiteSpace(ocr.FullText))
+            else if (result.Leaderboard.Count == 0 && !string.IsNullOrWhiteSpace(ocr.FullText))
             {
                 // Fallback: line-based parsing when no bounding boxes
                 ParseLines(ocr.FullText, result);
@@ -430,6 +441,47 @@ namespace DAL.Repository
                 {
                     result.EventName = rowText;
                 }
+            }
+        }
+
+        private static void TryParseStructuredFullText(GameOcrData result, string? fullText)
+        {
+            if (string.IsNullOrWhiteSpace(fullText)) return;
+
+            try
+            {
+                var jsonArray = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(fullText);
+                if (jsonArray == null || jsonArray.Count == 0) return;
+
+                foreach (var item in jsonArray)
+                {
+                    if (!item.TryGetValue("Hạng", out var rankValue) || !int.TryParse(rankValue, out var rank)) continue;
+
+                    var playerName = item.TryGetValue("Tên", out var name) ? name : null;
+                    var guildName = item.TryGetValue("Bang Hội", out var guild) ? guild : null;
+                    var scoreValue = item.TryGetValue("Lực Chiến", out var scoreText) ? scoreText : null;
+
+                    if (string.IsNullOrWhiteSpace(playerName)) continue;
+
+                    double score = 0;
+                    if (!string.IsNullOrWhiteSpace(scoreValue))
+                    {
+                        var cleaned = Regex.Replace(scoreValue, "[^0-9]", string.Empty);
+                        if (!string.IsNullOrWhiteSpace(cleaned)) double.TryParse(cleaned, out score);
+                    }
+
+                    result.Leaderboard.Add(new LeaderboardEntryRaw
+                    {
+                        Rank = rank,
+                        PlayerName = playerName,
+                        Score = score,
+                        GuildName = string.IsNullOrWhiteSpace(guildName) ? null : guildName
+                    });
+                }
+            }
+            catch
+            {
+                // Fall back to line-based parsing
             }
         }
 

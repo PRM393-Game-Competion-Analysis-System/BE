@@ -29,7 +29,7 @@ namespace GameCompetionAnalysisSystem.Services
             var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType =
                 new MediaTypeHeaderValue(file.ContentType ?? "image/png");
-            form.Add(fileContent, "file", file.FileName);
+            form.Add(fileContent, "image", file.FileName);
 
             var response = await _httpClient.PostAsync(_extractEndpoint, form);
             response.EnsureSuccessStatusCode();

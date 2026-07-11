@@ -92,7 +92,7 @@ public partial class Swd392GameAiContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("fieldtype");
             entity.Property(e => e.Rawtext)
-                .HasMaxLength(500)
+                .HasColumnType("text")
                 .HasColumnName("rawtext");
 
             entity.HasOne(d => d.Analysis).WithMany(p => p.Aiextractedfields)
