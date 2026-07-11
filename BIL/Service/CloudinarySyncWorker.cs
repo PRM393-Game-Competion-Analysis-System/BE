@@ -178,7 +178,7 @@ namespace BIL.Service
 
                     if (targetServer == null)
                     {
-                        targetServer = new Server { Servername = Truncate(gameData.ServerName, 255), Game = targetGame };
+                        targetServer = new Server { Servername = gameData.ServerName, Game = targetGame };
                         context.Servers.Add(targetServer);
                         await context.SaveChangesAsync();
                     }
@@ -203,7 +203,7 @@ namespace BIL.Service
                     {
                         targetEvent = new Event
                         {
-                            Eventname = Truncate(gameData.EventName, 255),
+                             Eventname = gameData.EventName,
                             Game = targetGame,
                             Startdate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                         };
@@ -222,7 +222,7 @@ namespace BIL.Service
                 // Create Leaderboard
                 var lb = new Leaderboard
                 {
-                    Title = Truncate($"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}", 255),
+                    Title = $"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}",
                     Createdfromanalysisid = analysis.Analysisid,
                     Metrictype = "Score",
                     Event = targetEvent
@@ -249,7 +249,7 @@ namespace BIL.Service
 
                             if (playerGuild == null)
                             {
-                                playerGuild = new Guild { Guildname = Truncate(entry.GuildName, 255), Server = targetServer };
+                                playerGuild = new Guild { Guildname = entry.GuildName, Server = targetServer };
                                 context.Guilds.Add(playerGuild);
                                 await context.SaveChangesAsync();
                             }

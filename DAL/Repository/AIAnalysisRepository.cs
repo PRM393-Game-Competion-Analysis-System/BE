@@ -200,7 +200,7 @@ namespace DAL.Repository
                     {
                         targetEvent = new Event
                         {
-                            Eventname = Truncate(gameData.EventName, 255),
+                            Eventname = gameData.EventName,
                             Game = targetGame,
                             Startdate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                         };
@@ -219,7 +219,7 @@ namespace DAL.Repository
                 // 4. Create Leaderboard
                 var lb = new Leaderboard
                 {
-                    Title = Truncate($"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}", 255),
+                    Title = $"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}",
                     Createdfromanalysisid = analysis.Analysisid,
                     Metrictype = "Score",
                     Event = targetEvent

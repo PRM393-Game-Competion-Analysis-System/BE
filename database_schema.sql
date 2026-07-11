@@ -92,7 +92,7 @@ CREATE TABLE player (
 -- ============================================================
 CREATE TABLE event (
     eventid     SERIAL,
-    eventname   VARCHAR(255),
+    eventname   TEXT,
     gameid      INT,
     eventtype   VARCHAR(100),
     startdate   TIMESTAMP WITHOUT TIME ZONE,
@@ -168,7 +168,7 @@ CREATE TABLE aiextractedfield (
 CREATE TABLE leaderboard (
     leaderboardid           SERIAL,
     eventid                 INT,
-    title                   VARCHAR(255),
+    title                   TEXT,
     metrictype              VARCHAR(100),
     createdfromanalysisid   INT,
     CONSTRAINT leaderboard_pkey PRIMARY KEY (leaderboardid),
