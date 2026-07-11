@@ -141,7 +141,7 @@ namespace BIL.Service
                 context.Aiextractedfields.Add(new Aiextractedfield
                 {
                     Analysisid = analysis.Analysisid,
-                    Rawtext = rawText.Length > 500 ? rawText[..500] : rawText,
+                    Rawtext = rawText,
                     Fieldtype = "RawText",
                     Confidence = avgConfidence
                 });
@@ -178,7 +178,7 @@ namespace BIL.Service
 
                     if (targetServer == null)
                     {
-                        targetServer = new Server { Servername = gameData.ServerName, Game = targetGame };
+                        targetServer = new Server { Servername = Truncate(gameData.ServerName, 255), Game = targetGame };
                         context.Servers.Add(targetServer);
                         await context.SaveChangesAsync();
                     }
@@ -203,7 +203,7 @@ namespace BIL.Service
                     {
                         targetEvent = new Event
                         {
-                            Eventname = gameData.EventName,
+                            Eventname = Truncate(gameData.EventName, 255),
                             Game = targetGame,
                             Startdate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                         };
@@ -222,7 +222,7 @@ namespace BIL.Service
                 // Create Leaderboard
                 var lb = new Leaderboard
                 {
-                    Title = $"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}",
+                    Title = Truncate($"Bảng xếp hạng {gameData.EventName ?? targetEvent?.Eventname ?? "mới"}", 255),
                     Createdfromanalysisid = analysis.Analysisid,
                     Metrictype = "Score",
                     Event = targetEvent
@@ -249,7 +249,7 @@ namespace BIL.Service
 
                             if (playerGuild == null)
                             {
-                                playerGuild = new Guild { Guildname = entry.GuildName, Server = targetServer };
+                                playerGuild = new Guild { Guildname = Truncate(entry.GuildName, 255), Server = targetServer };
                                 context.Guilds.Add(playerGuild);
                                 await context.SaveChangesAsync();
                             }
@@ -267,7 +267,7 @@ namespace BIL.Service
                         {
                             player = new Player
                             {
-                                Playername = entry.PlayerName,
+                                Playername = Truncate(entry.PlayerName, 255),
                                 Game = targetGame,
                                 Server = targetServer,
                                 Guild = playerGuild
@@ -305,6 +305,12 @@ namespace BIL.Service
             }
         }
 
+        private static string? Truncate(string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value;
+            return value.Length <= maxLength ? value : value[..maxLength];
+        }
+
         // ── OCR API call ──────────────────────────────────────────────────────────
 
         private static async Task<HfOcrResultDto> CallHfOcrWithUrl(HttpClient http, string imageUrl)
@@ -319,7 +325,7 @@ namespace BIL.Service
             using var form = new MultipartFormDataContent();
             var imageContent = new ByteArrayContent(imageBytes);
             imageContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-            form.Add(imageContent, "file", fileName);
+            form.Add(imageContent, "image", fileName);
 
             var response = await http.PostAsync(OcrEndpoint, form);
             var raw = await response.Content.ReadAsStringAsync();
@@ -357,6 +363,11 @@ namespace BIL.Service
         private static void ParseRows(List<List<HfTextBlock>> rows, GameOcrData result)
         {
             var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event", "Tournament" };
+
+            if (!string.IsNullOrWhiteSpace(result.GameName) && result.Leaderboard.Count == 0)
+            {
+                TryParseStructuredFullText(result);
+            }
 
             foreach (var row in rows)
             {
@@ -423,6 +434,8 @@ namespace BIL.Service
         private static void ParseLines(string fullText, GameOcrData result)
         {
             var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event" };
+
+            TryParseStructuredFullText(result, fullText);
             var rankLinePattern = new Regex(@"^(\d{1,3})[.\s]+(.+?)\s+([\d,\.]{4,})$");
 
             var lines = fullText
@@ -459,6 +472,48 @@ namespace BIL.Service
                 {
                     result.EventName = line;
                 }
+            }
+        }
+
+        private static void TryParseStructuredFullText(GameOcrData result, string? fullText = null)
+        {
+            var text = fullText ?? result.GameName;
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            try
+            {
+                var jsonArray = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(text);
+                if (jsonArray == null || jsonArray.Count == 0) return;
+
+                foreach (var item in jsonArray)
+                {
+                    if (!item.TryGetValue("Hạng", out var rankValue) || !int.TryParse(rankValue, out var rank)) continue;
+
+                    var playerName = item.TryGetValue("Tên", out var name) ? name : null;
+                    var guildName = item.TryGetValue("Bang Hội", out var guild) ? guild : null;
+                    var scoreValue = item.TryGetValue("Lực Chiến", out var scoreText) ? scoreText : null;
+
+                    if (string.IsNullOrWhiteSpace(playerName)) continue;
+
+                    double score = 0;
+                    if (!string.IsNullOrWhiteSpace(scoreValue))
+                    {
+                        var cleaned = Regex.Replace(scoreValue, "[^0-9]", string.Empty);
+                        if (!string.IsNullOrWhiteSpace(cleaned)) double.TryParse(cleaned, out score);
+                    }
+
+                    result.Leaderboard.Add(new LeaderboardEntryRaw
+                    {
+                        Rank = rank,
+                        PlayerName = playerName,
+                        Score = score,
+                        GuildName = string.IsNullOrWhiteSpace(guildName) ? null : guildName
+                    });
+                }
+            }
+            catch
+            {
+                // Ignore and fall back to existing parsing logic
             }
         }
 
