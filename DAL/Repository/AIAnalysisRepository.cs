@@ -481,13 +481,41 @@ namespace DAL.Repository
             }
             catch
             {
-                // Fall back to line-based parsing
+                // OCR can return nearly-JSON text with an unescaped quote in a
+                // value. Recover its fixed leaderboard columns instead of losing
+                // every entry.
+                var rows = Regex.Matches(
+    fullText,
+    @"""Hạng""\s*:\s*(?<rank>\d+)\s*,\s*""Tên""\s*:\s*""(?<name>.*?)""\s*,\s*""Bang Hội""\s*:\s*""(?<guild>.*?)""\s*,\s*""Lực Chiến""\s*:\s*""?(?<score>[\d.,]+)""?",
+    RegexOptions.Singleline);
+
+                foreach (Match row in rows)
+                {
+                    if (!int.TryParse(row.Groups["rank"].Value, out var rank) || rank is < 1 or > 999)
+                        continue;
+
+                    var playerName = UnescapeOcrJsonValue(row.Groups["name"].Value);
+                    if (string.IsNullOrWhiteSpace(playerName)) continue;
+
+                    var scoreText = Regex.Replace(row.Groups["score"].Value, "[^0-9]", string.Empty);
+                    double.TryParse(scoreText, out var score);
+                    var guildName = UnescapeOcrJsonValue(row.Groups["guild"].Value);
+                    result.Leaderboard.Add(new LeaderboardEntryRaw
+                    {
+                        Rank = rank,
+                        PlayerName = playerName,
+                        Score = score,
+                        GuildName = string.IsNullOrWhiteSpace(guildName) ? null : guildName
+                    });
+                }
             }
         }
 
         private static void ParseLines(string fullText, GameOcrData result)
         {
             var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event" };
+            if (LooksLikeStructuredLeaderboard(fullText)) return;
+
             var lines = fullText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
@@ -534,6 +562,14 @@ namespace DAL.Repository
                 }
             }
         }
+
+        private static bool LooksLikeStructuredLeaderboard(string text) =>
+            text.Contains("\"Hạng\"", StringComparison.Ordinal) &&
+            text.Contains("\"Tên\"", StringComparison.Ordinal) &&
+            text.Contains("\"Lực Chiến\"", StringComparison.Ordinal);
+
+        private static string UnescapeOcrJsonValue(string value) =>
+            value.Replace("\\\"", "\"").Replace("\\\\", "\\").Trim();
 
         private static List<List<HfTextBlock>> GroupBlocksIntoRows(List<HfTextBlock> blocks, int yTolerance)
         {
