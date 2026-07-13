@@ -53,14 +53,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+var ocrTimeoutSeconds = builder.Configuration.GetValue<int?>("OcrApi:TimeoutSeconds") ?? 600;
+
 builder.Services.AddHttpClient<IAIAnalysisRepository, AIAnalysisRepository>(client =>
 {
-    client.Timeout = TimeSpan.FromMinutes(5);
+    client.Timeout = TimeSpan.FromSeconds(ocrTimeoutSeconds);
 });
 
 builder.Services.AddHttpClient("OcrClient", client =>
 {
-    client.Timeout = TimeSpan.FromMinutes(5);
+    client.Timeout = TimeSpan.FromSeconds(ocrTimeoutSeconds);
 });
 
 builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
@@ -99,7 +101,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<Swd392GameAiContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddScoped<IAIAnalysisRepository, AIAnalysisRepository>();
+// builder.Services.AddScoped<IAIAnalysisRepository, AIAnalysisRepository>();
 builder.Services.AddScoped<IAIAnalysisService, AIAnalysisService>();
 
 builder.Services.AddScoped<IGameRepository, GameRepository>();
