@@ -46,19 +46,28 @@ namespace BIL.Service
 
                     var allLatest = new List<(string imageUrl, string publicId)>();
 
-                    var searchResult = await _cloudinary.Search()
-                        .Expression("folder:\"AirtestUpload\" AND resource_type:image")
-                        .SortBy("created_at", "desc")
-                        .MaxResults(50)
-                        .ExecuteAsync();
-
-                    if (searchResult.Resources != null)
+                    try
                     {
-                        foreach (var res in searchResult.Resources)
+                        var searchResult = await _cloudinary.Search()
+                            .Expression("folder:\"AirtestUpload\" AND resource_type:image")
+                            .SortBy("created_at", "desc")
+                            .MaxResults(50)
+                            .ExecuteAsync();
+
+                        if (searchResult.Resources != null)
                         {
-                            if (!string.IsNullOrEmpty(res.SecureUrl?.ToString()) && !string.IsNullOrEmpty(res.PublicId))
-                                allLatest.Add((res.SecureUrl.ToString(), res.PublicId));
+                            foreach (var res in searchResult.Resources)
+                            {
+                                if (!string.IsNullOrEmpty(res.SecureUrl?.ToString()) && !string.IsNullOrEmpty(res.PublicId))
+                                    allLatest.Add((res.SecureUrl.ToString(), res.PublicId));
+                            }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Search can be unavailable or rejected independently of
+                        // the Admin list endpoint. Continue with the fallback.
+                        _logger.LogWarning(ex, "Cloudinary Search failed; falling back to prefix listing");
                     }
 
                     if (allLatest.Count == 0)
@@ -80,6 +89,8 @@ namespace BIL.Service
                             }
                         }
                     }
+
+                    _logger.LogDebug("Cloudinary scan found {Count} candidate images", allLatest.Count);
 
                     foreach (var (imageUrl, publicId) in allLatest)
                     {
@@ -343,16 +354,21 @@ namespace BIL.Service
         {
             var result = new GameOcrData { GameName = gameName };
 
+            // The OCR service can return a JSON array directly in full_text, even
+            // when it also sends text blocks. Parse it before using positional OCR.
+            if (!string.IsNullOrWhiteSpace(ocr.FullText))
+                TryParseStructuredFullText(result, ocr.FullText);
+
             var validBlocks = ocr.TextBlocks
                 .Where(b => !string.IsNullOrWhiteSpace(b.Text) && b.BoundingBox != null && b.Confidence > 30)
                 .ToList();
 
-            if (validBlocks.Count > 0)
+            if (validBlocks.Count > 0 && result.Leaderboard.Count == 0)
             {
                 var rows = GroupBlocksIntoRows(validBlocks, yTolerance: 20);
                 ParseRows(rows, result);
             }
-            else if (!string.IsNullOrWhiteSpace(ocr.FullText))
+            else if (result.Leaderboard.Count == 0 && !string.IsNullOrWhiteSpace(ocr.FullText))
             {
                 ParseLines(ocr.FullText, result);
             }
@@ -363,11 +379,6 @@ namespace BIL.Service
         private static void ParseRows(List<List<HfTextBlock>> rows, GameOcrData result)
         {
             var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event", "Tournament" };
-
-            if (!string.IsNullOrWhiteSpace(result.GameName) && result.Leaderboard.Count == 0)
-            {
-                TryParseStructuredFullText(result);
-            }
 
             foreach (var row in rows)
             {
@@ -436,6 +447,10 @@ namespace BIL.Service
             var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event" };
 
             TryParseStructuredFullText(result, fullText);
+            // A malformed JSON leaderboard must not be treated as an event merely
+            // because its field name contains the word "Hạng".
+            if (LooksLikeStructuredLeaderboard(fullText)) return;
+
             var rankLinePattern = new Regex(@"^(\d{1,3})[.\s]+(.+?)\s+([\d,\.]{4,})$");
 
             var lines = fullText
@@ -477,7 +492,7 @@ namespace BIL.Service
 
         private static void TryParseStructuredFullText(GameOcrData result, string? fullText = null)
         {
-            var text = fullText ?? result.GameName;
+            var text = fullText;
             if (string.IsNullOrWhiteSpace(text)) return;
 
             try
@@ -513,9 +528,43 @@ namespace BIL.Service
             }
             catch
             {
-                // Ignore and fall back to existing parsing logic
+                // OCR occasionally produces invalid JSON (for example, an
+                // unescaped quote in a player name). Extract the fixed columns
+                // directly so one bad name does not discard the whole leaderboard.
+                var rows = Regex.Matches(
+    text,
+    @"""Hạng""\s*:\s*(?<rank>\d+)\s*,\s*""Tên""\s*:\s*""(?<name>.*?)""\s*,\s*""Bang Hội""\s*:\s*""(?<guild>.*?)""\s*,\s*""Lực Chiến""\s*:\s*""?(?<score>[\d.,]+)""?",
+    RegexOptions.Singleline);
+
+                foreach (Match row in rows)
+                {
+                    if (!int.TryParse(row.Groups["rank"].Value, out var rank) || rank is < 1 or > 999)
+                        continue;
+
+                    var playerName = UnescapeOcrJsonValue(row.Groups["name"].Value);
+                    if (string.IsNullOrWhiteSpace(playerName)) continue;
+
+                    var scoreText = Regex.Replace(row.Groups["score"].Value, "[^0-9]", string.Empty);
+                    double.TryParse(scoreText, out var score);
+                    var guildName = UnescapeOcrJsonValue(row.Groups["guild"].Value);
+                    result.Leaderboard.Add(new LeaderboardEntryRaw
+                    {
+                        Rank = rank,
+                        PlayerName = playerName,
+                        Score = score,
+                        GuildName = string.IsNullOrWhiteSpace(guildName) ? null : guildName
+                    });
+                }
             }
         }
+
+        private static bool LooksLikeStructuredLeaderboard(string text) =>
+            text.Contains("\"Hạng\"", StringComparison.Ordinal) &&
+            text.Contains("\"Tên\"", StringComparison.Ordinal) &&
+            text.Contains("\"Lực Chiến\"", StringComparison.Ordinal);
+
+        private static string UnescapeOcrJsonValue(string value) =>
+            value.Replace("\\\"", "\"").Replace("\\\\", "\\").Trim();
 
         private static List<List<HfTextBlock>> GroupBlocksIntoRows(List<HfTextBlock> blocks, int yTolerance)
         {
