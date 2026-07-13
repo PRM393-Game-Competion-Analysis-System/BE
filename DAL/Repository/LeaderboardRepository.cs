@@ -13,31 +13,27 @@ namespace DAL.Repository
 
         public async Task ParseOcrAndSaveAsync(int analysisId)
         {
-            var players = await _context.Players
-                .OrderBy(p => p.Playerid)
-                .Take(10)
-                .ToListAsync();
+            var analysis = await _context.Aianalyses
+                .Include(a => a.Leaderboards)
+                    .ThenInclude(lb => lb.Leaderboardentries)
+                .FirstOrDefaultAsync(a => a.Analysisid == analysisId);
 
-            int rank = 1;
+            if (analysis == null)
+                throw new KeyNotFoundException($"Analysis {analysisId} not found");
 
-            foreach (var player in players)
-            {
-                _context.Leaderboardentries.Add(new Leaderboardentry
-                {
-                    Rank = rank++,
-                    Playerid = player.Playerid,
-                    Leaderboardid = null,
-                    Value = 0
-                });
-            }
+            var leaderboard = analysis.Leaderboards.FirstOrDefault();
+            if (leaderboard?.Leaderboardentries.Count > 0)
+                return;
 
-            await _context.SaveChangesAsync();
+            throw new InvalidOperationException(
+                $"Analysis {analysisId} has no parsed leaderboard entries. Re-run /api/ai/analyze for this screenshot.");
         }
 
         public async Task<List<Leaderboardentry>> GetTopAsync(int n)
         {
             return await _context.Leaderboardentries
                 .Include(x => x.Player)
+                    .ThenInclude(p => p!.Guild)
                 .OrderBy(x => x.Rank)
                 .Take(n)
                 .ToListAsync();
@@ -102,6 +98,7 @@ namespace DAL.Repository
         {
             return await _context.Leaderboardentries
                 .Include(x => x.Player)
+                    .ThenInclude(p => p!.Guild)
                 .Where(x => x.Leaderboardid == leaderboardId)
                 .OrderBy(x => x.Rank)
                 .ToListAsync();
@@ -111,6 +108,7 @@ namespace DAL.Repository
         {
             return await _context.Leaderboardentries
                 .Include(x => x.Player)
+                    .ThenInclude(p => p!.Guild)
                 .Where(x => x.Leaderboardid == leaderboardId)
                 .OrderByDescending(x => x.Value)
                 .ThenBy(x => x.Rank)

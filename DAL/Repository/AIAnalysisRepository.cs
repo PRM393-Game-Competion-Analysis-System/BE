@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace DAL.Repository
 {
@@ -147,7 +146,7 @@ namespace DAL.Repository
                 });
 
                 // Parse structured game data from OCR
-                var gameData = ParseOcrToGameData(ocr, gameName);
+                var gameData = LeaderboardOcrParser.Parse(ocr, gameName);
 
                 Dictionary<string, Server> serverCache = [];
                 Dictionary<string, Guild> guildCache = [];
@@ -336,197 +335,6 @@ namespace DAL.Repository
 
             return JsonSerializer.Deserialize<HfOcrResultDto>(raw, _jsonOptions)
                 ?? throw new Exception("Failed to parse OCR result");
-        }
-
-        // ── OCR text parser ───────────────────────────────────────────────────────
-
-        private static GameOcrData ParseOcrToGameData(HfOcrResultDto ocr, string gameName)
-        {
-            var result = new GameOcrData { GameName = gameName };
-
-            var validBlocks = ocr.TextBlocks
-                .Where(b => !string.IsNullOrWhiteSpace(b.Text) && b.BoundingBox != null && b.Confidence > 30)
-                .ToList();
-
-            if (validBlocks.Count > 0)
-            {
-                var rows = GroupBlocksIntoRows(validBlocks, yTolerance: 20);
-                ParseRows(rows, result);
-            }
-            else if (!string.IsNullOrWhiteSpace(ocr.FullText))
-            {
-                // Fallback: line-based parsing when no bounding boxes
-                ParseLines(ocr.FullText, result);
-            }
-
-            return result;
-        }
-
-        private static void ParseRows(List<List<HfTextBlock>> rows, GameOcrData result)
-        {
-            var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event", "Tournament" };
-
-            foreach (var row in rows)
-            {
-                var tokens = row
-                    .Select(b => b.Text!.Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                if (tokens.Count == 0) continue;
-
-                var rowText = string.Join(" ", tokens);
-
-                // Leaderboard row: first token is rank number
-                if (int.TryParse(tokens[0], out int rank) && rank >= 1 && rank <= 999 && tokens.Count >= 2)
-                {
-                    var mutableTokens = tokens.ToList();
-                    mutableTokens.RemoveAt(0); // remove rank
-
-                    // Find score: last token that parses as a large number
-                    double score = 0;
-                    for (int i = mutableTokens.Count - 1; i >= 0; i--)
-                    {
-                        var cleaned = mutableTokens[i].Replace(",", "").Replace(".", "");
-                        if (double.TryParse(cleaned, out var s) && s > 0)
-                        {
-                            score = s;
-                            mutableTokens.RemoveAt(i);
-                            break;
-                        }
-                    }
-
-                    var playerName = mutableTokens.Count > 0 ? mutableTokens[0] : null;
-                    var guildName = mutableTokens.Count > 1
-                        ? string.Join(" ", mutableTokens.Skip(1)).Trim()
-                        : null;
-
-                    if (!string.IsNullOrEmpty(playerName))
-                    {
-                        result.Leaderboard.Add(new LeaderboardEntryRaw
-                        {
-                            Rank = rank,
-                            PlayerName = playerName,
-                            Score = score,
-                            GuildName = string.IsNullOrWhiteSpace(guildName) ? null : guildName
-                        });
-                    }
-                    continue;
-                }
-
-                // Server name: contains S\d pattern or keywords
-                if (result.ServerName == null &&
-                    (Regex.IsMatch(rowText, @"\bS\d{1,3}\b") ||
-                     rowText.Contains("Server", StringComparison.OrdinalIgnoreCase) ||
-                     rowText.Contains("Máy chủ", StringComparison.OrdinalIgnoreCase)))
-                {
-                    result.ServerName = rowText;
-                    continue;
-                }
-
-                // Event name: contains known Vietnamese leaderboard keywords
-                if (result.EventName == null &&
-                    eventKeywords.Any(k => rowText.Contains(k, StringComparison.OrdinalIgnoreCase)))
-                {
-                    result.EventName = rowText;
-                }
-            }
-        }
-
-        private static void ParseLines(string fullText, GameOcrData result)
-        {
-            var eventKeywords = new[] { "Bảng", "Xếp Hạng", "Chiến", "Giải", "Hạng", "Event" };
-            var lines = fullText
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim())
-                .Where(l => l.Length > 0)
-                .ToList();
-
-            // Rank pattern: "1 PlayerName GuildName 123456" or "1. PlayerName 123456"
-            var rankLinePattern = new Regex(@"^(\d{1,3})[.\s]+(.+?)\s+([\d,\.]{4,})$");
-
-            foreach (var line in lines)
-            {
-                // Try leaderboard row
-                var m = rankLinePattern.Match(line);
-                if (m.Success && int.TryParse(m.Groups[1].Value, out int rank) && rank >= 1 && rank <= 999)
-                {
-                    var scoreStr = m.Groups[3].Value.Replace(",", "").Replace(".", "");
-                    double.TryParse(scoreStr, out double score);
-
-                    var middle = m.Groups[2].Value.Trim();
-                    // Split middle into player name + guild (best guess: first word = player, rest = guild)
-                    var parts = middle.Split(' ', 2);
-                    result.Leaderboard.Add(new LeaderboardEntryRaw
-                    {
-                        Rank = rank,
-                        PlayerName = parts[0],
-                        Score = score,
-                        GuildName = parts.Length > 1 ? parts[1].Trim() : null
-                    });
-                    continue;
-                }
-
-                if (result.ServerName == null &&
-                    (Regex.IsMatch(line, @"\bS\d{1,3}\b") ||
-                     line.Contains("Server", StringComparison.OrdinalIgnoreCase)))
-                {
-                    result.ServerName = line;
-                    continue;
-                }
-
-                if (result.EventName == null &&
-                    eventKeywords.Any(k => line.Contains(k, StringComparison.OrdinalIgnoreCase)))
-                {
-                    result.EventName = line;
-                }
-            }
-        }
-
-        private static List<List<HfTextBlock>> GroupBlocksIntoRows(List<HfTextBlock> blocks, int yTolerance)
-        {
-            var sorted = blocks.OrderBy(b => b.BoundingBox!.Y).ToList();
-            var rows = new List<List<HfTextBlock>>();
-            List<HfTextBlock>? currentRow = null;
-            int currentRowY = int.MinValue;
-
-            foreach (var block in sorted)
-            {
-                var blockY = block.BoundingBox!.Y;
-                if (currentRow == null || Math.Abs(blockY - currentRowY) > yTolerance)
-                {
-                    currentRow = [block];
-                    rows.Add(currentRow);
-                    currentRowY = blockY;
-                }
-                else
-                {
-                    currentRow.Add(block);
-                }
-            }
-
-            foreach (var row in rows)
-                row.Sort((a, b) => a.BoundingBox!.X.CompareTo(b.BoundingBox!.X));
-
-            return rows;
-        }
-
-        // ── Helper types ──────────────────────────────────────────────────────────
-
-        private class GameOcrData
-        {
-            public string? GameName { get; set; }
-            public string? ServerName { get; set; }
-            public string? EventName { get; set; }
-            public List<LeaderboardEntryRaw> Leaderboard { get; set; } = [];
-        }
-
-        private class LeaderboardEntryRaw
-        {
-            public int Rank { get; set; }
-            public string PlayerName { get; set; } = "";
-            public double Score { get; set; }
-            public string? GuildName { get; set; }
         }
 
         // ── Query methods (unchanged) ─────────────────────────────────────────────
