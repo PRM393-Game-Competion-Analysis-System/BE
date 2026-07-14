@@ -37,7 +37,8 @@ namespace DAL.Repository
         public async Task<List<Leaderboardentry>> GetTopAsync(int n)
         {
             return await _context.Leaderboardentries
-                .Include(x => x.Player)
+                .Include(x => x.Player)!
+                    .ThenInclude(p => p!.Guild)
                 .OrderBy(x => x.Rank)
                 .Take(n)
                 .ToListAsync();
@@ -101,7 +102,8 @@ namespace DAL.Repository
         public async Task<List<Leaderboardentry>> GetEntriesByLeaderboardIdAsync(int leaderboardId)
         {
             return await _context.Leaderboardentries
-                .Include(x => x.Player)
+                .Include(x => x.Player)!
+                .ThenInclude(p => p!.Guild)
                 .Where(x => x.Leaderboardid == leaderboardId)
                 .OrderBy(x => x.Rank)
                 .ToListAsync();
@@ -110,7 +112,8 @@ namespace DAL.Repository
         public async Task<List<Leaderboardentry>> GetSortedEntriesByLeaderboardIdAsync(int leaderboardId)
         {
             return await _context.Leaderboardentries
-                .Include(x => x.Player)
+                .Include(x => x.Player)!
+                    .ThenInclude(p => p!.Guild)
                 .Where(x => x.Leaderboardid == leaderboardId)
                 .OrderByDescending(x => x.Value)
                 .ThenBy(x => x.Rank)
