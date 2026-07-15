@@ -8,9 +8,9 @@ using System.Text;
 
 namespace BIL.Service;
 
-public class AuthService(Swd392GameAiContext context, IConfiguration config) : IAuthService
+public class AuthService(PRM393GameAiContext context, IConfiguration config) : IAuthService
 {
-    private readonly Swd392GameAiContext _context = context;
+    private readonly PRM393GameAiContext _context = context;
     private readonly IConfiguration _config = config;
 
     public User? Authenticate(string email, string password)

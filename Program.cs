@@ -99,7 +99,7 @@ builder.Services.AddSwaggerGen(c =>
             });
 });
 
-builder.Services.AddDbContext<Swd392GameAiContext>(options =>
+builder.Services.AddDbContext<PRM393GameAiContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 // builder.Services.AddScoped<IAIAnalysisRepository, AIAnalysisRepository>();
 builder.Services.AddScoped<IAIAnalysisService, AIAnalysisService>();

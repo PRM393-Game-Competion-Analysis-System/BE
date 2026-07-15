@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace DAL.Repository
 {
-    public class LeaderboardRepository(Swd392GameAiContext context) : ILeaderboardRepository
+    public class LeaderboardRepository(PRM393GameAiContext context) : ILeaderboardRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
 
         public async Task ParseOcrAndSaveAsync(int analysisId)
         {

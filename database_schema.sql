@@ -1,7 +1,7 @@
 -- ============================================================
 -- GameCompetionAnalysisSystem - PostgreSQL Schema
--- Source: DAL/Entities/Swd392GameAiContext.cs (EF Core Fluent API)
--- Database: swd392_game_ai
+-- Source: DAL/Entities/PRM393GameAiContext.cs (EF Core Fluent API)
+-- Database: PRM393_game_ai
 -- ============================================================
 
 -- Drop tables in reverse FK order (safe re-run)
@@ -250,7 +250,7 @@ INSERT INTO player (playername, gameid, serverid, guildid) VALUES
 
 -- "User"
 INSERT INTO "User" (username, email, passwordhash, role) VALUES
-    ('admin',   'admin@swd392.com',  '$2a$11$placeholder_hash_admin', 'admin'),
+    ('admin',   'admin@prm393.com',  '$2a$11$placeholder_hash_admin', 'admin'),
     ('player1', 'player1@gmail.com', '$2a$11$placeholder_hash_p1',    'user'),
     ('player2', 'player2@gmail.com', '$2a$11$placeholder_hash_p2',    'user');
 

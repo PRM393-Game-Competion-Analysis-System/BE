@@ -6,9 +6,9 @@ using System.Linq;
 
 namespace DAL.Repository
 {
-    public class EventRepository(Swd392GameAiContext context) : IEventRepository
+    public class EventRepository(PRM393GameAiContext context) : IEventRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
 
         public List<Event> GetAll(QueryParameters parameters, out int totalCount)
         {

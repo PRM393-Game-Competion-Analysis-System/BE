@@ -41,7 +41,7 @@ namespace BIL.Service
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<Swd392GameAiContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<PRM393GameAiContext>();
                     var http = _httpClientFactory.CreateClient("OcrClient");
 
                     var allLatest = new List<(string imageUrl, string publicId)>();
@@ -112,7 +112,7 @@ namespace BIL.Service
             }
         }
 
-        private async Task ProcessNewImageAsync(Swd392GameAiContext context, HttpClient http, string imageUrl)
+        private async Task ProcessNewImageAsync(PRM393GameAiContext context, HttpClient http, string imageUrl)
         {
             int systemUserId = 1;
 

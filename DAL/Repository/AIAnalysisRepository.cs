@@ -12,9 +12,9 @@ using System.Text.RegularExpressions;
 
 namespace DAL.Repository
 {
-    public class AIAnalysisRepository(Swd392GameAiContext context, HttpClient http, IConfiguration config) : IAIAnalysisRepository
+    public class AIAnalysisRepository(PRM393GameAiContext context, HttpClient http, IConfiguration config) : IAIAnalysisRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
         private readonly HttpClient _http = http;
         private readonly IConfiguration _config = config;
         private readonly Cloudinary _cloudinary = new(new Account(

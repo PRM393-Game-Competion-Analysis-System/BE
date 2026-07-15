@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace DAL.Repository
 {
-    public class GameRepository(Swd392GameAiContext context) : IGameRepository
+    public class GameRepository(PRM393GameAiContext context) : IGameRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
 
         public List<Game> GetAll(QueryParameters parameters, out int totalCount)
         {

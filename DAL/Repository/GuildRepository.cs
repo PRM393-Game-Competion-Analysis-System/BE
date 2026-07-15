@@ -6,9 +6,9 @@ using System.Linq;
 
 namespace DAL.Repository
 {
-    public class GuildRepository(Swd392GameAiContext context) : IGuildRepository
+    public class GuildRepository(PRM393GameAiContext context) : IGuildRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
 
         public List<Guild> GetAll(QueryParameters parameters, out int totalCount)
         {

@@ -5,13 +5,13 @@ using System.Collections.Generic;
 
 namespace DAL.Entities;
 
-public partial class Swd392GameAiContext : DbContext
+public partial class PRM393GameAiContext : DbContext
 {
-    public Swd392GameAiContext()
+    public PRM393GameAiContext()
     {
     }
 
-    public Swd392GameAiContext(DbContextOptions<Swd392GameAiContext> options)
+    public PRM393GameAiContext(DbContextOptions<PRM393GameAiContext> options)
         : base(options)
     {
     }

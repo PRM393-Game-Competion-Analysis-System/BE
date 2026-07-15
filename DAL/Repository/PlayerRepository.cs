@@ -6,9 +6,9 @@ using System.Linq;
 
 namespace DAL.Repository
 {
-    public class PlayerRepository(Swd392GameAiContext context) : IPlayerRepository
+    public class PlayerRepository(PRM393GameAiContext context) : IPlayerRepository
     {
-        private readonly Swd392GameAiContext _context = context;
+        private readonly PRM393GameAiContext _context = context;
 
         public List<Player> GetAll(QueryParameters parameters, out int totalCount)
         {
