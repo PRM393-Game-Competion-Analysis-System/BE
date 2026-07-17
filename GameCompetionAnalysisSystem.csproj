@@ -6,16 +6,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Exclude BIL and DAL source files since they're compiled as separate projects -->
+  <!-- Exclude BIL, DAL and Tests source files since they're compiled as separate projects -->
   <ItemGroup>
     <Compile Remove="BIL\**" />
     <Compile Remove="DAL\**" />
+    <Compile Remove="GameCompetionAnalysisSystem.Tests\**" />
     <Content Remove="BIL\**" />
     <Content Remove="DAL\**" />
+    <Content Remove="GameCompetionAnalysisSystem.Tests\**" />
     <EmbeddedResource Remove="BIL\**" />
     <EmbeddedResource Remove="DAL\**" />
+    <EmbeddedResource Remove="GameCompetionAnalysisSystem.Tests\**" />
     <None Remove="BIL\**" />
     <None Remove="DAL\**" />
+    <None Remove="GameCompetionAnalysisSystem.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
